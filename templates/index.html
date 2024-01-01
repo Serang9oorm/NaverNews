@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="kr">
+<head>
+	<meta charset="UTF-8">
+    <title>Naver News</title>
+    <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+    
+    <h2>황영호(자연어처리 16) - 9oormthon</h2>    
+    <h2>Crawling Naver News</h2>
+    <form>
+        <!-- Input Form -->
+        <label for="Date">Date:</label>
+        <input type="date" id="startDate" name="startDate">
+
+        <label for="endDate">~</label>
+        <input type="date" id="endDate" name="endDate">
+
+        <label for="category">Category:</label>
+        <select id="category" name="category">
+            <option value="105">IT/Science</option>
+            <option value="100">Politic</option>
+            <option value="101">Economic</option>
+            <option value="102">Society</option>
+            <option value="103">Life/Culture</option>
+            <option value="104">World</option>
+        </select>
+
+        <label for="press">Press:</label>
+        <input type="text" id="press" name="press" OnKeyDown="CheckEnter(this.form,this)">
+
+        <label for="pageSize">Page Size:</label>
+        <input type="number" id="pageSize" name="pageSize" min="20" max="50" value="20" >
+
+        <label for="pageNo">Max Page:</label>
+        <input type="number" id="maxPage" name="maxPage" min="0", max="30" value="0">
+
+        <input type="button" value="Send to Server" onclick="submitForm()">
+    </form>
+
+    <span id="crawlingQuery", style="font:bold 1.2em; color: blue;" >
+        <!-- Query -->   
+    </span>
+
+    <h2>Result:</h2>
+    <div style="border: 1px solid; padding: 10px; width: auto; height: 640px;">
+        <table id="resultTable">
+            <thead>
+                <tr>
+                    <th>date</th>
+                    <th>category</th>
+                    <th>press</th>
+                    <th>title</th>
+                    <th>document</th>
+                    <th>link</th>
+                    <th>summary</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Result -->
+            </tbody>
+        </table>
+
+        <!-- Page No. -->
+        <div id="pageNumbers" style="text-align: center;"></div>
+    </div>
+
+    <script>
+
+        setQueryDate();
+
+        function setQueryDate() {
+
+            var minDate = getPreviousDate( 30 )
+            var recentDate = getPreviousDate( 3 )
+            var maxDate = getPreviousDate( 0 )
+
+            console.log( "setQueryDate():", "minDate:", minDate, "recentDate:", recentDate, "maxDate:", maxDate );
+            
+            document.getElementById("startDate").setAttribute("min", minDate);
+            document.getElementById("startDate").setAttribute("max", maxDate);
+            document.getElementById("startDate").setAttribute("value", recentDate);
+
+            document.getElementById("endDate").setAttribute("min", minDate);
+            document.getElementById("endDate").setAttribute("max", maxDate);
+            document.getElementById("endDate").setAttribute("value", maxDate);
+
+        }
+
+        function getPreviousDate( nDay ) {
+
+            var today = new Date();
+            var pDate = new Date( today.setDate( today.getDate() - nDay ) );
+
+            var pYear = pDate.getFullYear();
+            var pMonth = pDate.getMonth() + 1;
+            var pDay = pDate.getDate();
+
+            var previousDate = pYear + "-" + fillZero( pMonth ) + "-" + fillZero( pDay );
+            console.log( "previousDay:", nDay, "previousDate:", previousDate );
+
+            return previousDate
+        }
+
+        function fillZero( digit ) {
+            return ( (digit < 10) ? "0" : "" ) + digit;
+        }
+
+        function CheckEnter( frm, objName ) {
+            var keycode = event.keyCode;        
+            var i = 0;
+   
+            if( keycode == 13 ){
+                for( i = 0; i < frm.length; ++i ){
+	                if( objName.name == frm[i].name )
+                      break;
+                }
+                frm[++i].focus();
+            }
+        }
+
+        var currentPageSize = 2;    // 페이지당 항목 수 초기값
+        var currentPage = 1;        // 현재 페이지 초기값
+
+        var response = 0
+        var columnCount = 0
+        var rowCount = 0
+
+        function submitForm() {
+            
+            var startDate = document.getElementById("startDate").value;
+            var endDate = document.getElementById("endDate").value;
+            var category = document.getElementById("category").value;
+            var press = document.getElementById("press").value;
+            var pageSize = document.getElementById("pageSize").value;
+            var maxPage = document.getElementById("maxPage").value;
+
+            var query = "http://3.37.66.31/NaverNews?startDate=" + startDate + "&endDate=" + endDate + "&category=" + category + "&press=" + press + "&pageSize=" + pageSize + "&maxPage=" + maxPage
+            var crawlingQuery = document.getElementById("crawlingQuery")
+            crawlingQuery.innerHTML = "API Query: " + query.replace( ":5000", "" );
+
+            // AJAX
+            var xhr = new XMLHttpRequest();
+            xhr.open( "POST", query, true );
+
+			xhr.onreadystatechange = function(){
+			
+				if( xhr.readyState === xhr.DONE ){
+
+					if( xhr.status === 200 ){
+
+						console.log('Success');
+						
+						//var response = JSON.parse(xhr.responseText);
+                        //var columnCount = Object.keys(response).length
+                        //var rowCount = Object.keys(response.date).length
+
+                        response = JSON.parse(xhr.responseText);
+                        columnCount = Object.keys(response).length
+                        rowCount = Object.keys(response.date).length
+
+                        console.log( 'response:', response, columnCount, rowCount )
+
+                        //currentPageSize = parseInt(pageSize);
+                        //currentPage = 1;
+
+                        listResponse()
+							 
+					}else{
+						console.log('Fail');
+					}
+				}
+			};
+
+            xhr.send();
+        }
+
+        function listResponse() {
+
+            console.log( 'listResponse(): PageSize:', currentPageSize, 'CurrentPage:', currentPage )
+
+            // Result
+            var resultTable = document.getElementById("resultTable").getElementsByTagName('tbody')[0];
+            resultTable.innerHTML = "";
+
+            var startIdx = ( currentPage - 1 ) * currentPageSize;
+            var endIdx = startIdx + currentPageSize;
+
+            for ( var i = startIdx; (i < endIdx && i < rowCount); i++ ) {
+
+                var row = resultTable.insertRow( i - startIdx );
+                
+                row.insertCell(0).innerHTML = response.date[i];
+                row.insertCell(1).innerHTML = response.category[i];
+                row.insertCell(2).innerHTML = response.press[i];
+                row.insertCell(3).innerHTML = response.title[i];
+                row.insertCell(4).innerHTML = response.document[i];
+                row.insertCell(5).innerHTML =  "<a href='" + response.link[i] +"'>" + response.link[i] + "</a>";
+                row.insertCell(6).innerHTML = response.summary[i];
+            }
+            // 페이지 번호 업데이트
+            updatePageNumbers(rowCount);
+
+        }
+
+        function updatePageNumbers( rowCount ) {
+
+            var totalPages = Math.ceil( rowCount / currentPageSize);
+            var pageNumbers = document.getElementById("pageNumbers");
+            pageNumbers.innerHTML = "";
+
+            for ( var i = 1; i <= totalPages; i++ ) {
+
+                var pageLink = document.createElement("a");
+                pageLink.href = "#";
+                pageLink.innerText = i;
+                pageLink.onclick = function () {
+                    document.getElementById("pageNumbers").value = this.innerText;
+                    currentPage = parseInt(this.innerText)
+                    //console.log( "currentPage:", currentPage, this.innerText )
+                    //submitForm();
+                    listResponse();
+                };
+
+                if (i === currentPage) {
+                    pageLink.style.fontWeight = "bold";
+                }
+
+                pageNumbers.appendChild(pageLink);
+
+                if (i < totalPages) {
+                    pageNumbers.appendChild(document.createTextNode(" | "));
+                }
+            }
+        }
+
+    </script>
+
+</body>
+</html>
