@@ -47,11 +47,21 @@ def naverNews():
     # Crawling - NaverNews
     df = getNaverNews( startDate, endDate, category, press, pageSize, maxPage )
 
+    # df = pd.DataFrame(
+    #     [ [ "2023.11.30. 오전 10:46", "IT과학", "뉴시스", "'외국인 민원 OK' 보은군, 인공지능 통번역기 운영", "65개 언어 지원…언어장벽 해소보은군에서 외국인 민원인을 위해 운영 중인 인공지능 ...", "https://n.news.naver.com/mnews/article/003/001", "..." ],
+    #       [ "2023.11.29. 오후 5:11", "IT과학", "연합뉴스", "NIA, 인공지능 기업 CEO들과 AI 윤리 확산 간담회", "AI 윤리 확산 CEO 간담회[한국지능정보사회진흥원 제공] (서울=연합뉴스) ...", "https://n.news.naver.com/mnews/article/001/001", "..." ],
+    #       [ "2023.11.30. 오전 7:23", "IT과학", "헤럴드경제", "경콘진, '인공지능 활용 게임 제작 매뉴얼' 배포", "[경콘진 제공][헤럴드경제(수원)=박정규 기자]경기콘텐츠진흥원(원장 탁용석)은 20...", "https://n.news.naver.com/mnews/article/016/000", "..." ],
+    #       [ "2023.11.29. 오후 4:33", "IT과학", "노컷뉴스", "'원주시를 인공지능 실리콘 밸리로'", "핵심요약원주시, 국내 혁신 선도기업과 AI얼라이언스 공동연구센터 구축29일 원주시와...", "https://n.news.naver.com/mnews/article/079/000", "..." ]
+    #     ],
+    #     columns=[ "date", "category", "press", "title", "document", "link", "summary" ]
+    # )
+    #print(df)
+
     r = df.to_json( orient="columns" )
     #print( "json:", r, r.encode("utf-8") )
 
     #df2 = pd.read_json(js)
-    #print( 'df2', df2)
+    #print( 'df2', df2 )
 
     return make_response( r.encode("utf-8"), 200 )
 
@@ -126,7 +136,7 @@ def getNaverNews( startDate, endDate, category, press, pageSize, maxPage ):
                 if link not in link_list:
             
                     print( 'Request:', link )
-                    time.sleep(3) 
+                    #time.sleep(3) 
 
                     article_res = requests.get( link, headers=req_header_dict )
                     print( article_res.status_code, article_res.ok )
@@ -155,7 +165,11 @@ def getNaverNews( startDate, endDate, category, press, pageSize, maxPage ):
                         #print( "Document2:", contents_cleansing(document))
                         print( "Document:", document )
 
-                        if dateCheck and pressCheck:
+                        if not dateCheck:
+                            print( '날짜 변경:', startDate, endDate, article_date )
+                            break
+                            
+                        if pressCheck:
                             
                             articleCount += 1
                             print( '추가:', articleCount )
@@ -181,16 +195,6 @@ def getNaverNews( startDate, endDate, category, press, pageSize, maxPage ):
 
     print( '총갯수:', articleCount ) 
 
-    # df = pd.DataFrame(
-    #     [ [ "2023.11.30. 오전 10:46", "IT과학", "뉴시스", "'외국인 민원 OK' 보은군, 인공지능 통번역기 운영", "65개 언어 지원…언어장벽 해소보은군에서 외국인 민원인을 위해 운영 중인 인공지능 ...", "https://n.news.naver.com/mnews/article/003/001", "..." ],
-    #       [ "2023.11.29. 오후 5:11", "IT과학", "연합뉴스", "NIA, 인공지능 기업 CEO들과 AI 윤리 확산 간담회", "AI 윤리 확산 CEO 간담회[한국지능정보사회진흥원 제공] (서울=연합뉴스) ...", "https://n.news.naver.com/mnews/article/001/001", "..." ],
-    #       [ "2023.11.30. 오전 7:23", "IT과학", "헤럴드경제", "경콘진, '인공지능 활용 게임 제작 매뉴얼' 배포", "[경콘진 제공][헤럴드경제(수원)=박정규 기자]경기콘텐츠진흥원(원장 탁용석)은 20...", "https://n.news.naver.com/mnews/article/016/000", "..." ],
-    #       [ "2023.11.29. 오후 4:33", "IT과학", "노컷뉴스", "'원주시를 인공지능 실리콘 밸리로'", "핵심요약원주시, 국내 혁신 선도기업과 AI얼라이언스 공동연구센터 구축29일 원주시와...", "https://n.news.naver.com/mnews/article/079/000", "..." ]
-    #     ],
-    #     columns=[ "date", "category", "press", "title", "document", "link", "summary" ]
-    # )
-    # #print(df)
-
     result = {  'date'      : date_list,
                 'category'  : category_list,
                 'press'     : press_list,
@@ -201,7 +205,7 @@ def getNaverNews( startDate, endDate, category, press, pageSize, maxPage ):
             }
     
     df = pd.DataFrame( result )
-    #df.to_csv( 'result.csv')
+    df.to_csv( 'result.csv')
 
     return df
 

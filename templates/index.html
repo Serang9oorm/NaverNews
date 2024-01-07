@@ -74,7 +74,7 @@
         function setQueryDate() {
 
             var minDate = getPreviousDate( 30 )
-            var recentDate = getPreviousDate( 2 )
+            var recentDate = getPreviousDate( 1 )
             var maxDate = getPreviousDate( 0 )
 
             console.log( "setQueryDate():", "minDate:", minDate, "recentDate:", recentDate, "maxDate:", maxDate );
@@ -141,7 +141,8 @@
 
             var query = "http://3.37.66.31/NaverNews?startDate=" + startDate + "&endDate=" + endDate + "&category=" + category + "&press=" + press + "&pageSize=" + pageSize + "&maxPage=" + maxPage
             var crawlingQuery = document.getElementById("crawlingQuery")
-            crawlingQuery.innerHTML = "API Query: " + query.replace( ":5000", "" );
+            //crawlingQuery.innerHTML = "API Query: " + query.replace( ":5000", "" );
+            crawlingQuery.innerHTML = "API Query: " + query;
 
             document.getElementById("resultTable").getElementsByTagName('tbody')[0].innerHTML = "";
             document.getElementById("result").innerHTML = "서버 자료 요청중 (Please wait while crawling) ...";
