@@ -139,7 +139,7 @@
             
             currentPageSize = parseInt( pageSize );
 
-            var query = "http://3.37.66.31:5000/NaverNews?startDate=" + startDate + "&endDate=" + endDate + "&category=" + category + "&press=" + press + "&pageSize=" + pageSize + "&maxPage=" + maxPage
+            var query = "http://3.37.66.31/NaverNews?startDate=" + startDate + "&endDate=" + endDate + "&category=" + category + "&press=" + press + "&pageSize=" + pageSize + "&maxPage=" + maxPage
             var crawlingQuery = document.getElementById("crawlingQuery")
             crawlingQuery.innerHTML = "API Query: " + query.replace( ":5000", "" );
 
