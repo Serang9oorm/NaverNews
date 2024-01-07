@@ -58,7 +58,7 @@ def createDB_Serang9oorm():
             document text,
             link varchar(100) default '',
             summary text,
-            primary key( newsDate, press )
+            primary key( link )
             )
             """
         createTable( TABLE_News, DB_Name, sql, cursor )

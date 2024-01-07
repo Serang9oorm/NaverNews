@@ -19,19 +19,20 @@
 
         <label for="category">Category:</label>
         <select id="category" name="category">
-            <option value="105">IT/Science</option>
-            <option value="100">Politic</option>
-            <option value="101">Economic</option>
-            <option value="102">Society</option>
-            <option value="103">Life/Culture</option>
-            <option value="104">World</option>
+            <option value="101">Politic</option>
+            <option value="102">Economic</option>
+            <option value="103">Society</option>
+            <option value="104">Life/Culture</option>
+            <option value="105" selected>IT/Science</option>
+            <option value="106">World</option>
         </select>
+        <!-- { '101': '정치', '102' : '경제', '103' : '사회', '104' : '생활/문화', '105' : 'IT/과학', '106' : '세계' } -->
 
         <label for="press">Press:</label>
         <input type="text" id="press" name="press" OnKeyDown="CheckEnter(this.form,this)">
 
         <label for="pageSize">Page Size:</label>
-        <input type="number" id="pageSize" name="pageSize" min="20" max="50" value="20" >
+        <input type="number" id="pageSize" name="pageSize" min="10" max="50" value="10" >
 
         <label for="pageNo">Max Page:</label>
         <input type="number" id="maxPage" name="maxPage" min="0", max="30" value="0">
@@ -43,8 +44,8 @@
         <!-- Query -->   
     </span>
 
-    <h2>Result:</h2>
-    <div style="border: 1px solid; padding: 10px; width: auto; height: 640px;">
+    <h2 id="result">Result:</h2>
+    <div style="border: 1px solid; padding: 10px; width: auto; height: 540px;">
         <table id="resultTable">
             <thead>
                 <tr>
@@ -73,7 +74,7 @@
         function setQueryDate() {
 
             var minDate = getPreviousDate( 30 )
-            var recentDate = getPreviousDate( 3 )
+            var recentDate = getPreviousDate( 2 )
             var maxDate = getPreviousDate( 0 )
 
             console.log( "setQueryDate():", "minDate:", minDate, "recentDate:", recentDate, "maxDate:", maxDate );
@@ -120,7 +121,7 @@
             }
         }
 
-        var currentPageSize = 2;    // 페이지당 항목 수 초기값
+        var currentPageSize = 10;   // 페이지당 항목 수 초기값
         var currentPage = 1;        // 현재 페이지 초기값
 
         var response = 0
@@ -135,14 +136,19 @@
             var press = document.getElementById("press").value;
             var pageSize = document.getElementById("pageSize").value;
             var maxPage = document.getElementById("maxPage").value;
+            
+            currentPageSize = parseInt( pageSize );
 
-            var query = "http://3.37.66.31/NaverNews?startDate=" + startDate + "&endDate=" + endDate + "&category=" + category + "&press=" + press + "&pageSize=" + pageSize + "&maxPage=" + maxPage
+            var query = "http://3.37.66.31:5000/NaverNews?startDate=" + startDate + "&endDate=" + endDate + "&category=" + category + "&press=" + press + "&pageSize=" + pageSize + "&maxPage=" + maxPage
             var crawlingQuery = document.getElementById("crawlingQuery")
             crawlingQuery.innerHTML = "API Query: " + query.replace( ":5000", "" );
 
+            document.getElementById("resultTable").getElementsByTagName('tbody')[0].innerHTML = "";
+            document.getElementById("result").innerHTML = "서버 자료 요청중 (Please wait while crawling) ...";
+
             // AJAX
             var xhr = new XMLHttpRequest();
-            xhr.open( "POST", query, true );
+            xhr.open( "GET", query, true );
 
 			xhr.onreadystatechange = function(){
 			
@@ -151,7 +157,7 @@
 					if( xhr.status === 200 ){
 
 						console.log('Success');
-						
+
 						//var response = JSON.parse(xhr.responseText);
                         //var columnCount = Object.keys(response).length
                         //var rowCount = Object.keys(response.date).length
@@ -159,6 +165,8 @@
                         response = JSON.parse(xhr.responseText);
                         columnCount = Object.keys(response).length
                         rowCount = Object.keys(response.date).length
+
+                        document.getElementById("result").innerHTML = "Result Counts: " + rowCount;
 
                         console.log( 'response:', response, columnCount, rowCount )
 
@@ -186,6 +194,7 @@
 
             var startIdx = ( currentPage - 1 ) * currentPageSize;
             var endIdx = startIdx + currentPageSize;
+            console.log( 'Idx:', startIdx, endIdx )
 
             for ( var i = startIdx; (i < endIdx && i < rowCount); i++ ) {
 
