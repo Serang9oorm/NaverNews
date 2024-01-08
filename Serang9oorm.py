@@ -73,6 +73,8 @@ def naverNews( act ):
         else:
             df = pd.DataFrame( newsList[:maxCount], columns=columns )
 
+        df['category'] = df['category'].apply(getCategoryName)
+
     else:
 
         # Crawling - NaverNews
@@ -88,8 +90,7 @@ def naverNews( act ):
 
 def crawler( startDate, endDate, category, press, pageSize, maxPage ):
 
-    categoryName = { '101': '정치', '102' : '경제', '103' : '사회', '104' : '생활/문화', '105' : 'IT/과학', '106' : '세계' }[category]
-    print( categoryName )
+    categoryName = getCategoryName( category )
 
     NaverNews = "https://news.naver.com/main/main.naver?mode=LSD&mid=shm&sid1={sid}#&date=%2000:00:00&page={page}"
 
@@ -248,6 +249,12 @@ def crawler( startDate, endDate, category, press, pageSize, maxPage ):
     return df
 
 
+def getCategoryName( category ):
+
+    categoryName = { '101': '정치', '102' : '경제', '103' : '사회', '104' : '생활/문화', '105' : 'IT/과학', '106' : '세계' }[category]
+    #print( categoryName )
+
+    return categoryName
     
 # ----------------------------------------------------------------------------------------------------------------------
 
