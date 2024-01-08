@@ -8,7 +8,7 @@
 <body>
     
     <h2>황영호(자연어처리 16) - 9oormthon</h2>    
-    <h2>Crawling Naver News</h2>
+    <h2>Naver News</h2>
     <form>
         <!-- Input Form -->
         <label for="Date">Date:</label>
@@ -37,7 +37,9 @@
         <label for="pageNo">Max Page:</label>
         <input type="number" id="maxPage" name="maxPage" min="0", max="30" value="0">
 
-        <input type="button" value="Send to Server" onclick="submitForm()">
+        <input type="button" value="Get News from DB" onclick="submitForm( 'GetNews' )">
+        <input type="button" value="Start Server Crawler" onclick="submitForm( 'StartCrawler')">
+
     </form>
 
     <span id="crawlingQuery", style="font:bold 1.2em; color: blue;" >
@@ -51,12 +53,12 @@
                 <tr>
                     <th>date</th>
                     <th>category</th>
-                    <th>press</th>
+                    <th style="width: 60px;">press</th>
                     <th>title</th>
                     <th>document</th>
                     <th>link</th>
-                    <th>summary</th>
-                </tr>
+                    <!-- <th>summary</th> -->
+                 </tr>
             </thead>
             <tbody>
                 <!-- Result -->
@@ -128,7 +130,7 @@
         var columnCount = 0
         var rowCount = 0
 
-        function submitForm() {
+        function submitForm( act ) {
             
             var startDate = document.getElementById("startDate").value;
             var endDate = document.getElementById("endDate").value;
@@ -139,17 +141,18 @@
             
             currentPageSize = parseInt( pageSize );
 
-            var query = "http://3.37.66.31/NaverNews?startDate=" + startDate + "&endDate=" + endDate + "&category=" + category + "&press=" + press + "&pageSize=" + pageSize + "&maxPage=" + maxPage
+            var query = "http://3.37.66.31/NaverNews/" + act + "?startDate=" + startDate + "&endDate=" + endDate + "&category=" + category + "&press=" + press + "&pageSize=" + pageSize + "&maxPage=" + maxPage
             var crawlingQuery = document.getElementById("crawlingQuery")
             //crawlingQuery.innerHTML = "API Query: " + query.replace( ":5000", "" );
             crawlingQuery.innerHTML = "API Query: " + query;
 
             document.getElementById("resultTable").getElementsByTagName('tbody')[0].innerHTML = "";
-            document.getElementById("result").innerHTML = "서버 자료 요청중 (Please wait while crawling) ...";
+            document.getElementById("result").innerHTML = ( act == 'GetNews' ) ? "DB 서버로부터 뉴스 자료 요청중 (Please wait while selecting...)" : "서버 뉴스 크롤러 시작! (Start crawling...)";
 
             // AJAX
             var xhr = new XMLHttpRequest();
             xhr.open( "GET", query, true );
+            //xhr.open( "POST", query, true );
 
 			xhr.onreadystatechange = function(){
 			
@@ -207,7 +210,7 @@
                 row.insertCell(3).innerHTML = response.title[i];
                 row.insertCell(4).innerHTML = response.document[i];
                 row.insertCell(5).innerHTML =  "<a href='" + response.link[i] +"'>" + response.link[i] + "</a>";
-                row.insertCell(6).innerHTML = response.summary[i];
+                //row.insertCell(6).innerHTML = response.summary[i];
             }
             // 페이지 번호 업데이트
             updatePageNumbers(rowCount);
@@ -233,13 +236,13 @@
                     listResponse();
                 };
 
-                if (i === currentPage) {
+                if ( i === currentPage ) {
                     pageLink.style.fontWeight = "bold";
                 }
 
                 pageNumbers.appendChild(pageLink);
 
-                if (i < totalPages) {
+                if ( i < totalPages ) {
                     pageNumbers.appendChild(document.createTextNode(" | "));
                 }
             }

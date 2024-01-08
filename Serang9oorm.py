@@ -30,8 +30,8 @@ def home():
     return render_template( 'index.html' )
 
 
-@app.route('/NaverNews', methods=['GET', 'POST'])
-def naverNews():
+@app.route('/NaverNews/<act>', methods=['GET', 'POST'])
+def naverNews( act ):
 
     startDate = datetime.datetime.strptime( request.args.get( 'startDate' ), '%Y-%m-%d' )
     endDate = datetime.datetime.strptime( request.args.get( 'endDate' ), '%Y-%m-%d' ) + datetime.timedelta(days=1)
@@ -40,33 +40,53 @@ def naverNews():
     pageSize = int( request.args.get( 'pageSize', '20' ) )
     maxPage = int( request.args.get( 'maxPage', '0' ) )
 
-    print( type(startDate), type(endDate), type(pageSize), type(maxPage) )
-
-    print( '/NaverNews ', "StartDate:", startDate, ", EndDate:", endDate, ", Category:", category, "Press:", press, "PageSize:", pageSize, "MaxPage:", maxPage )
+    #print( type(startDate), type(endDate), type(pageSize), type(maxPage) )
+    print( '/NaverNews/', act, 'StartDate:', startDate, ", EndDate:", endDate, ", Category:", category, "Press:", press, "PageSize:", pageSize, "MaxPage:", maxPage ) , "StartDate:", startDate, ", EndDate:", endDate, ", Category:", category, "Press:", press, "PageSize:", pageSize, "MaxPage:", maxPage 
   
-    # Crawling - NaverNews
-    df = getNaverNews( startDate, endDate, category, press, pageSize, maxPage )
+    if ( act == 'GetNews' ):
 
-    # df = pd.DataFrame(
-    #     [ [ "2023.11.30. 오전 10:46", "IT과학", "뉴시스", "'외국인 민원 OK' 보은군, 인공지능 통번역기 운영", "65개 언어 지원…언어장벽 해소보은군에서 외국인 민원인을 위해 운영 중인 인공지능 ...", "https://n.news.naver.com/mnews/article/003/001", "..." ],
-    #       [ "2023.11.29. 오후 5:11", "IT과학", "연합뉴스", "NIA, 인공지능 기업 CEO들과 AI 윤리 확산 간담회", "AI 윤리 확산 CEO 간담회[한국지능정보사회진흥원 제공] (서울=연합뉴스) ...", "https://n.news.naver.com/mnews/article/001/001", "..." ],
-    #       [ "2023.11.30. 오전 7:23", "IT과학", "헤럴드경제", "경콘진, '인공지능 활용 게임 제작 매뉴얼' 배포", "[경콘진 제공][헤럴드경제(수원)=박정규 기자]경기콘텐츠진흥원(원장 탁용석)은 20...", "https://n.news.naver.com/mnews/article/016/000", "..." ],
-    #       [ "2023.11.29. 오후 4:33", "IT과학", "노컷뉴스", "'원주시를 인공지능 실리콘 밸리로'", "핵심요약원주시, 국내 혁신 선도기업과 AI얼라이언스 공동연구센터 구축29일 원주시와...", "https://n.news.naver.com/mnews/article/079/000", "..." ]
-    #     ],
-    #     columns=[ "date", "category", "press", "title", "document", "link", "summary" ]
-    # )
+        columns = [ "date", "category", "press", "title", "document", "link" ]
+
+        # df = pd.DataFrame(
+        #         [   [ "2023.11.30. 오전 10:46", "IT과학", "뉴시스", "'외국인 민원 OK' 보은군, 인공지능 통번역기 운영", "65개 언어 지원…언어장벽 해소보은군에서 외국인 민원인을 위해 운영 중인 인공지능 ...", "https://n.news.naver.com/mnews/article/003/001" ],
+        #             [ "2023.11.29. 오후 5:11", "IT과학", "연합뉴스", "NIA, 인공지능 기업 CEO들과 AI 윤리 확산 간담회", "AI 윤리 확산 CEO 간담회[한국지능정보사회진흥원 제공] (서울=연합뉴스) ...", "https://n.news.naver.com/mnews/article/001/001" ],
+        #             [ "2023.11.30. 오전 7:23", "IT과학", "헤럴드경제", "경콘진, '인공지능 활용 게임 제작 매뉴얼' 배포", "[경콘진 제공][헤럴드경제(수원)=박정규 기자]경기콘텐츠진흥원(원장 탁용석)은 20...", "https://n.news.naver.com/mnews/article/016/000" ],
+        #             [ "2023.11.29. 오후 4:33", "IT과학", "노컷뉴스", "'원주시를 인공지능 실리콘 밸리로'", "핵심요약원주시, 국내 혁신 선도기업과 AI얼라이언스 공동연구센터 구축29일 원주시와...", "https://n.news.naver.com/mnews/article/079/000" ]
+        #         ],
+        #         columns=columns
+        # )
+
+        seekTable = TABLE_News
+        seekField = "DATE_FORMAT( newsDate, '%Y-%m-%d %H:%M:%S' ), category, press, title, summary, link"
+        seekWhere = f"newsDate >= '{startDate}' and newsDate < '{endDate}' and " + f"category = '{category}'" + ( '' if press == '' else "and press LIKE '%" + f"{press}%'" )
+        #print( seekTable, seekField, seekWhere )        
+
+        newsList = getData( seekTable, seekField, seekWhere, many=MANY_ALL )
+        #print( newsList )
+
+        maxCount = pageSize * maxPage       
+
+        if maxCount == 0 or maxCount >= len( newsList ):
+
+            df = pd.DataFrame( newsList, columns=columns )
+            
+        else:
+            df = pd.DataFrame( newsList[:maxCount], columns=columns )
+
+    else:
+
+        # Crawling - NaverNews
+        df = crawler( startDate, endDate, category, press, pageSize, maxPage )
+
     #print(df)
 
     r = df.to_json( orient="columns" )
     #print( "json:", r, r.encode("utf-8") )
 
-    #df2 = pd.read_json(js)
-    #print( 'df2', df2 )
-
     return make_response( r.encode("utf-8"), 200 )
 
 
-def getNaverNews( startDate, endDate, category, press, pageSize, maxPage ):
+def crawler( startDate, endDate, category, press, pageSize, maxPage ):
 
     categoryName = { '101': '정치', '102' : '경제', '103' : '사회', '104' : '생활/문화', '105' : 'IT/과학', '106' : '세계' }[category]
     print( categoryName )
@@ -88,21 +108,23 @@ def getNaverNews( startDate, endDate, category, press, pageSize, maxPage ):
     link_list = []
     summary_list = []
 
-    dateCheck = True
+    dateUnderCheck = False
+    dateOverCheck = False
 
     articleCount = 0
+    duplicationCount = 0
     maxCount = pageSize * maxPage
 
     nPage = 1
 
-    while dateCheck and ( maxCount == 0 or articleCount < maxCount ):
+    while not dateOverCheck and ( maxCount == 0 or articleCount < maxCount ):
         
         print( 'nPage:', nPage )
         url = NaverNews.format( sid=category, page=nPage )
 
         res = requests.get( url, headers=req_header_dict ) 
         print( res.status_code, res.ok )
-        #print( type(res) )
+        #print( type(res) ) 
         #print( '응답헤더', res.headers )
         #print( '요청헤더', res.request.headers )
         #print( res.text )
@@ -119,15 +141,15 @@ def getNaverNews( startDate, endDate, category, press, pageSize, maxPage ):
 
                 #print(item)
                 print( '-' * 60 )
-                article_title = item.a.get_text() 
+                article_title = removeMark( item.a.get_text() )
                 print( "Title:", article_title )
                 link = item.a['href']
                 print( "Link0:", item.a['href'] )
                 link = link if link.find('?') < 0 else link[0:link.find('?')]
                 print( "Link:", link )
-                documentHead = item.select_one("div.sh_text_lede").get_text()
+                documentHead = removeMark( item.select_one("div.sh_text_lede").get_text() )
                 print( "DocumentHead:", documentHead )
-                article_press = item.select_one("div.sh_text_press").get_text()
+                article_press = removeMark( item.select_one("div.sh_text_press").get_text() )
                 pressCheck = ( press in article_press ) if press != '' else True
                 print( "Press: ( ", press, ")", article_press, pressCheck )
                 #print( '=' * 60 )            
@@ -136,7 +158,7 @@ def getNaverNews( startDate, endDate, category, press, pageSize, maxPage ):
                 if link not in link_list:
             
                     print( 'Request:', link )
-                    #time.sleep(3) 
+                    time.sleep(0.5) 
 
                     article_res = requests.get( link, headers=req_header_dict )
                     print( article_res.status_code, article_res.ok )
@@ -150,29 +172,35 @@ def getNaverNews( startDate, endDate, category, press, pageSize, maxPage ):
                         article_html = article_res.text
                         article_soup = BS( article_html, 'html.parser' )
                         #sh_list = soup.select("div._persist > div.section_headline > ul > li > div.sh_text")
+                        
                         #datetime = article_soup.select("span._ARTICLE_DATE_TIME").find['data-date-time']
                         article_datetime = article_soup.select("span._ARTICLE_DATE_TIME")[0]['data-date-time']
                         #datetime = datetime['data-date-time']
                         print( "DateTime:", article_datetime )
                         article_date = datetime.datetime.strptime( article_datetime, "%Y-%m-%d %H:%M:%S" )
                         #print( "DateTime:", type(article_date), article_date )
-                        dateCheck = ( article_date >= startDate ) and ( article_date < endDate )
-                        print( "DateCheck:", dateCheck )
+
+                        #dateCheck = ( article_date >= startDate ) and ( article_date < endDate )
+                        dateUnderCheck = ( article_date < startDate )
+                        dateOverCheck = ( article_date >= endDate )
+                        print( "DateCheck:", dateUnderCheck, dateOverCheck )
 
                         article_document = article_soup.select("article#dic_area")[0]
-                        document = article_document.get_text().replace("\n\n\n", "\n")
-                        #print( "Document1:", document )
-                        #print( "Document2:", contents_cleansing(document))
-                        print( "Document:", document )
+                        document = removeMark( article_document.get_text() )
+                        
+                        #print( "Document:", document )
 
-                        if not dateCheck:
-                            print( '날짜 변경:', startDate, endDate, article_date )
+                        if dateOverCheck:
+                            print( 'Date Over:', startDate, endDate, article_date )
                             break
                             
-                        if pressCheck:
+                        elif dateUnderCheck:
+                            continue
+
+                        elif pressCheck:
                             
                             articleCount += 1
-                            print( '추가:', articleCount )
+                            print( '[추가] Page:', nPage, ', Count:', articleCount )
 
                             date_list.append( article_datetime )
                             category_list.append( categoryName )
@@ -180,28 +208,38 @@ def getNaverNews( startDate, endDate, category, press, pageSize, maxPage ):
                             title_list.append( article_title )
                             document_list.append( documentHead )
                             link_list.append( link )
-                            #summary_list.append( document )
-                            summary_list.append( '' )
+                            summary_list.append( documentHead )
 
+                            news_data = { 'newsDate'    : article_datetime,
+                                          'category'    : category,
+                                          'press'       : article_press,
+                                          'title'       : article_title,
+                                          'document'    : document,
+                                          'link'        : link,
+                                          'summary'     : documentHead
+                                         }
+                            
+                            insertData( TABLE_News, news_data )
                             #db.insertData( TABLE_News, { 'date': article_date, 'category': categoryName, 'press': article_press, 'title': item.a.get_text(), 'document': document, 'link': link, 'summary': documentHead } )
                 
                 else:
-                    print( '중복:', link )
+                    duplicationCount += 1
+                    print( '[중복] Page:', nPage, ', Count: (', duplicationCount, ')', articleCount, link )
 
             nPage += 1
 
         else:
             dateCheck = False
 
-    print( '총갯수:', articleCount ) 
+    print( '총갯수:', articleCount, '총중복갯수:', duplicationCount, '총페이지수:', nPage - 1 )
 
     result = {  'date'      : date_list,
                 'category'  : category_list,
                 'press'     : press_list,
                 'title'     : title_list,
-                'document'  : document_list,
+                'document'  : summary_list,
                 'link'      : link_list,
-                'summary'   : summary_list
+                #'summary'   : summary_list
             }
     
     df = pd.DataFrame( result )
@@ -210,6 +248,7 @@ def getNaverNews( startDate, endDate, category, press, pageSize, maxPage ):
     return df
 
 
+    
 # ----------------------------------------------------------------------------------------------------------------------
 
 if __name__=="__main__":

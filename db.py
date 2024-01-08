@@ -14,7 +14,6 @@ from config import *
 # Table of Content
 TABLE_News = 'NaverNews'
 
-FIELD_News_ID = 'news_id'            # News
 FIELD_NewsDate = 'newsDate'          # 날짜
 FIELD_Category = 'category'          # 분류
 FIELD_Press = 'press'                # 신문사
@@ -115,7 +114,7 @@ def insertData( table, tableValue, dbName=DB_Name, InsertMode="INSERT" ):
             host = Host_Name,           # MySQL 서버 호스트
             user = User_Name,           # MySQL 사용자 이름
             password = Pass_Word,       # MySQL 암호
-            database = DB_Name          # 연결할 데이터베이스
+            database = dbName           # 연결할 데이터베이스
         )
 
         #cursor = db.cursor( mdb.cursors.DictCursor )
@@ -170,7 +169,7 @@ def replaceData( table, tableValue, dbName=DB_Name ):
 # Table에 새로운 데이타{ 'field': value }를 대치한다.
     #print( '[replaceData] table:', table, '/tableValue:', tableValue )
 
-    return insertData( table, tableValue, dbName=DB_Name, InsertMode="REPLACE" )
+    return insertData( table, tableValue, dbName, InsertMode="REPLACE" )
 
 
 def updateData( table, where, tableValue, dbName=DB_Name ):
@@ -185,7 +184,7 @@ def updateData( table, where, tableValue, dbName=DB_Name ):
             host = Host_Name,           # MySQL 서버 호스트
             user = User_Name,           # MySQL 사용자 이름
             password = Pass_Word,       # MySQL 암호
-            database = DB_Name          # 연결할 데이터베이스
+            database = dbName           # 연결할 데이터베이스
         )
 
         #cursor = db.cursor( mdb.cursors.DictCursor )
@@ -201,7 +200,7 @@ def updateData( table, where, tableValue, dbName=DB_Name ):
         #print( '[updateData] setValue:', setValue )
 
         sql = 'UPDATE ' + table + ' SET ' + setValue + ' WHERE ' + where
-        print( '[updateData] sql:', sql )
+        #print( '[updateData] sql:', sql )
 
         #print( 'sql.encode():', sql.encode() )
         cursor.execute( sql.encode() )
@@ -238,7 +237,7 @@ def deleteData( table, where, dbName=DB_Name ):
             host = Host_Name,           # MySQL 서버 호스트
             user = User_Name,           # MySQL 사용자 이름
             password = Pass_Word,       # MySQL 암호
-            database = DB_Name          # 연결할 데이터베이스
+            database = dbName           # 연결할 데이터베이스
         )
 
         #cursor = db.cursor( mdb.cursors.DictCursor )
@@ -248,7 +247,7 @@ def deleteData( table, where, dbName=DB_Name ):
         #print( '[deleteData] sql:', sql )
 
         # print( 'sql.encode():', sql.encode() )
-        cursor.execute(sql.encode())
+        cursor.execute( sql.encode() )
         db.commit()
 
         result = True
@@ -270,6 +269,170 @@ def deleteData( table, where, dbName=DB_Name ):
     return result
 
 
+def getDataList( table, fields, where=None, many=MANY_ALL, order=None ):
+#Table로부터 조건에 맞는 리스트를 가져온다
+
+    dataList = []
+
+    data = getData( table, fields=fields, where=where, many=many, order=order )
+    if ( data != None ):
+
+        fieldsName = fields.replace( 'DISTINCT', '' ).strip()
+        #print( 'getDataList:', table, fields, fieldsName, data, type( data ), len( data ) )
+
+        if ( type( data ) == tuple ):
+            for d in data:
+                dataList.append( d.get( fieldsName ) )
+        elif ( type( data ) == dict ):
+            dataList.append( data.get( fieldsName ) )
+
+    print( 'getDataList data:', data, 'dataList:', dataList )
+
+    return dataList
+
+
+def getData( table, fields='*', where=None, many=MANY_1, order=None, dbName=DB_Name ):
+# Table로부터 조건(where)에 맞는 데이타배열을 가져온다.
+    #print( '[getData] table:', table, '/where:', where, '/many:', many )
+
+    try:
+        # Open database connection
+        db = mdb.connect(
+            host = Host_Name,           # MySQL 서버 호스트
+            user = User_Name,           # MySQL 사용자 이름
+            password = Pass_Word,       # MySQL 암호
+            database = dbName           # 연결할 데이터베이스
+        )
+
+        #cursor = db.cursor( mdb.cursors.DictCursor )
+        cursor = db.cursor()
+
+        #sql = "SELECT * FROM " + table + " WHERE " + getWhereSQL( where )
+        sql = "SELECT " + fields + " FROM " + table + ( " WHERE " + where if ( where != None ) else '' ) + ( " ORDER BY " + order if ( order != None ) else '' )
+        #print( 'getData:', sql )
+
+        cursor.execute( sql )
+
+        if ( many == MANY_1 ):
+            #rows = cursor.fetchone()
+            rows = cursor.fetchmany( many )
+        else:
+            rows = cursor.fetchall()
+
+        rowCount = len(rows)
+
+        #print( '[getData] sql:', sql+'\n', '/rows:', rows, '/len:', rowCount, '/type:', type(rows) )
+
+        if ( rowCount == 0 ):
+            data = None
+
+        else:
+            #data = getTableList( cursor.description, 'id', rows )
+            getDeleteKeyInRows( rows, 'id' )
+
+            if ( len(rows) == many == 1 ):
+                data = rows[0]
+            else:
+                data = rows
+
+
+    except mdb.Error as e:
+        # except mysql.connector.errors.ProgrammingError as err:
+        print( 'GetData Error: %d, %s' % ( e.args[0], e.args[1] ) )
+        #db.rollback()
+        data = None
+        #sys.exit(1)
+
+    except FileNotFoundError as e:
+        print( 'Error occured in getData: ', e )
+        #db.rollback()
+        data = None
+
+    finally:
+        #print('finally close')
+        if db:
+            db.close()
+
+    #print( '[getData] return data:', data, '/type:', type(data) )
+    return data
+
+
+def getDeleteKeyInRows( rows, delKey ):
+# Dictionary 여러줄(rows)에 들어있는 field(delKey)를 제거.
+    for i in range( 0, len(rows)-1 ):
+
+        if delKey in rows[i]:
+            del rows[i][delKey]
+
+
+def getDeleteKeyInRow( row, delKey ):
+#Dictionary 하나의 줄(row)에 있는 field(delKey)를 제거.
+    if delKey in row:
+        del row[delKey]
+
+
+def getTableList( description, delKey, rows ):
+# Dictionary 여러줄(rows_에 들어있는 field(delKey)를 제거.
+# field를 가져오기 위해 cursor.description을 이용.
+    #print( 'description:', description, 'delKey:', delKey )
+
+    fieldName = []
+    for field in description:
+        if ( field[0] != delKey ):
+            fieldName.append( field[0] )
+            #print( field[0] )
+
+    fieldCount = len( fieldName )
+    #print( 'fieldCount:', fieldCount )
+
+    tableList = []
+
+    #print( 'rows:', len(rows), rows )
+    for row in rows:
+
+        tableValue = {}
+        for i in range( 0, fieldCount ):
+            tableValue[ fieldName[i] ] = '' if ( row[fieldName[i]] is None ) else row[ fieldName[i] ]
+        #print( tableValue )
+
+        tableList.append( tableValue )
+
+    return tableList
+
+
+def getWhere( tableName, tableValue ):
+    #return  tableName + " = '" + tableValue + "'"
+    return  tableName + " = " + getQuotation( tableValue ) + str( tableValue ) + getQuotation( tableValue )
+
+
+def getWhereSQL( where ):
+# { 'field': value } -> field = 'value'형식으로 변환
+    if ( type(where) == list ):
+
+        sql = ''
+        addAND = 1
+
+        for subWhere in where:
+
+            sql += getWhereField( subWhere )
+            sql += ' AND ' if ( addAND < len(where) ) else ''
+            addAND += 1
+
+    else:
+
+        sql = getWhereField( where )
+
+    return sql
+
+
+def getWhereField( where ):
+# { 'field': value } -> field = 'value'형식으로 변환
+    for field in where:
+        quotation = getQuotation( where[field] )
+        sql = field + " = " + quotation + str( where[field] ) + quotation
+
+    return sql
+
 def getQuotation( value ):
 # value가 숫자인 경우에만 따옴표를 붙이지 않는다.
     return( "" if ( type(value) is int ) else "'" )
@@ -281,3 +444,10 @@ def getStr2Int( str ):
 def afterPost( str ):
 # post한 str내에서 ampersand(/@)를 &로 바꾼다.
     return str.replace( SIGN_AMPERSAND, '&' ).replace( SIGN_SHARP, '#' )
+
+def removeMark( txt ):
+    retTxt = txt.replace( "\n\n\n", "\n" )
+    retTxt = retTxt.replace( " '", " '" )
+    retTxt = retTxt.replace( "·", "," )
+    retTxt = retTxt.strip()
+    return retTxt
