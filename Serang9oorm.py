@@ -47,6 +47,7 @@ def naverNews( act ):
 
         columns = [ "date", "category", "press", "title", "document", "link" ]
 
+        # Mock Data
         # df = pd.DataFrame(
         #         [   [ "2023.11.30. 오전 10:46", "IT과학", "뉴시스", "'외국인 민원 OK' 보은군, 인공지능 통번역기 운영", "65개 언어 지원…언어장벽 해소보은군에서 외국인 민원인을 위해 운영 중인 인공지능 ...", "https://n.news.naver.com/mnews/article/003/001" ],
         #             [ "2023.11.29. 오후 5:11", "IT과학", "연합뉴스", "NIA, 인공지능 기업 CEO들과 AI 윤리 확산 간담회", "AI 윤리 확산 CEO 간담회[한국지능정보사회진흥원 제공] (서울=연합뉴스) ...", "https://n.news.naver.com/mnews/article/001/001" ],
