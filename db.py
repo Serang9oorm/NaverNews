@@ -19,6 +19,7 @@ FIELD_Category = 'category'          # 분류
 FIELD_Press = 'press'                # 신문사
 FIELD_Title = 'title'                # 제목
 FIELD_Document = 'document'          # 내용
+FIELD_DocumentHead = 'documentHead'  # 내용Head
 FIELD_Link = 'link'                  # Link
 FIELD_Summary = 'summary'            # 요약
 
@@ -55,6 +56,7 @@ def createDB_Serang9oorm():
             press varchar(50) default '',
             title varchar(100) default '',
             document text,
+            documentHead text,
             link varchar(100) default '',
             summary text,
             primary key( link )

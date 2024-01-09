@@ -57,7 +57,7 @@ def naverNews( act ):
         # )
 
         seekTable = TABLE_News
-        seekField = "DATE_FORMAT( newsDate, '%Y-%m-%d %H:%M:%S' ), category, press, title, summary, link"
+        seekField = "DATE_FORMAT( newsDate, '%Y-%m-%d %H:%i:%s' ), category, press, title, documentHead, link"
         seekWhere = f"newsDate >= '{startDate}' and newsDate < '{endDate}' and " + f"category = '{category}'" + ( '' if press == '' else "and press LIKE '%" + f"{press}%'" )
         #print( seekTable, seekField, seekWhere )        
 
@@ -105,9 +105,8 @@ def crawler( startDate, endDate, category, press, pageSize, maxPage ):
     category_list = []
     press_list = []
     title_list = []
-    document_list = []
+    documentHead_list = []
     link_list = []
-    summary_list = []
 
     dateUnderCheck = False
     dateOverCheck = False
@@ -159,7 +158,8 @@ def crawler( startDate, endDate, category, press, pageSize, maxPage ):
                 if link not in link_list:
             
                     print( 'Request:', link )
-                    time.sleep(0.5) 
+                    time.sleep(0.5)
+                    #time.sleep( random.uniform(2,4) )
 
                     article_res = requests.get( link, headers=req_header_dict )
                     print( article_res.status_code, article_res.ok )
@@ -207,17 +207,17 @@ def crawler( startDate, endDate, category, press, pageSize, maxPage ):
                             category_list.append( categoryName )
                             press_list.append( article_press )
                             title_list.append( article_title )
-                            document_list.append( documentHead )
+                            documentHead_list.append( documentHead )
                             link_list.append( link )
-                            summary_list.append( documentHead )
 
-                            news_data = { 'newsDate'    : article_datetime,
-                                          'category'    : category,
-                                          'press'       : article_press,
-                                          'title'       : article_title,
-                                          'document'    : document,
-                                          'link'        : link,
-                                          'summary'     : documentHead
+                            news_data = { 'newsDate'        : article_datetime,
+                                          'category'        : category,
+                                          'press'           : article_press,
+                                          'title'           : article_title,
+                                          'document'        : document,
+                                          'documentHead'    : documentHead,
+                                          'link'            : link,
+                                          'summary'         : ''
                                          }
                             
                             insertData( TABLE_News, news_data )
@@ -238,9 +238,8 @@ def crawler( startDate, endDate, category, press, pageSize, maxPage ):
                 'category'  : category_list,
                 'press'     : press_list,
                 'title'     : title_list,
-                'document'  : summary_list,
-                'link'      : link_list,
-                #'summary'   : summary_list
+                'document'  : documentHead_list,
+                'link'      : link_list
             }
     
     df = pd.DataFrame( result )
@@ -251,7 +250,7 @@ def crawler( startDate, endDate, category, press, pageSize, maxPage ):
 
 def getCategoryName( category ):
 
-    categoryName = { '101': '정치', '102' : '경제', '103' : '사회', '104' : '생활/문화', '105' : 'IT/과학', '106' : '세계' }[category]
+    categoryName = { '100': '정치', '101' : '경제', '102' : '사회', '103' : '생활/문화', '105' : 'IT/과학', '104' : '세계' }[category]
     #print( categoryName )
 
     return categoryName

@@ -19,14 +19,14 @@
 
         <label for="category">Category:</label>
         <select id="category" name="category">
-            <option value="101">Politic</option>
-            <option value="102">Economic</option>
-            <option value="103">Society</option>
-            <option value="104">Life/Culture</option>
+            <option value="100">Politic</option>
+            <option value="101">Economic</option>
+            <option value="102">Society</option>
+            <option value="103">Life/Culture</option>
             <option value="105" selected>IT/Science</option>
-            <option value="106">World</option>
+            <option value="104">World</option>
         </select>
-        <!-- { '101': '정치', '102' : '경제', '103' : '사회', '104' : '생활/문화', '105' : 'IT/과학', '106' : '세계' } -->
+        <!-- { '100': '정치', '101' : '경제', '102' : '사회', '103' : '생활/문화', '105' : 'IT/과학', '104' : '세계' } -->
 
         <label for="press">Press:</label>
         <input type="text" id="press" name="press" OnKeyDown="CheckEnter(this.form,this)">
@@ -51,8 +51,8 @@
         <table id="resultTable">
             <thead>
                 <tr>
-                    <th>date</th>
-                    <th>category</th>
+                    <th style="width: 110px;">date</th>
+                    <th style="width: 100px;">category</th>
                     <th style="width: 60px;">press</th>
                     <th>title</th>
                     <th>document</th>
@@ -147,6 +147,7 @@
             crawlingQuery.innerHTML = "API Query: " + query;
 
             document.getElementById("resultTable").getElementsByTagName('tbody')[0].innerHTML = "";
+            document.getElementById("pageNumbers").innerHTML = "";
             document.getElementById("result").innerHTML = ( act == 'GetNews' ) ? "DB 서버로부터 뉴스 자료 요청중 (Please wait while selecting...)" : "서버 뉴스 크롤러 시작! (Start crawling...)";
 
             // AJAX
