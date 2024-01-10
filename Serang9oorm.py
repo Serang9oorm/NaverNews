@@ -6,12 +6,18 @@ import time
 import random
 import logging
 from json import dumps as json_encode
+import os
 
 import pandas as pd
 
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup as BS
+
+import konlpy
+#import nltk
+from konlpy.tag import Okt
+import joblib
 
 from flask import Flask, request, jsonify, Response
 from flask import render_template
@@ -30,7 +36,19 @@ def home():
     return render_template( 'index.html' )
 
 
-@app.route('/NaverNews/<act>', methods=['GET', 'POST'])
+@app.route('/Classification', methods=['POST'])
+def classification():
+
+    article = request.form.get( 'article', '' )
+    #print( 'article:', article )
+
+    #r = getClassfication( article )
+    r = "서버 지연으로 아직 제공되지 않습니다."
+
+    return make_response( r.encode("utf-8"), 200 )
+
+
+@app.route('/NaverNews/<act>', methods=['GET'])
 def naverNews( act ):
 
     startDate = datetime.datetime.strptime( request.args.get( 'startDate' ), '%Y-%m-%d' )
@@ -49,12 +67,12 @@ def naverNews( act ):
 
         # Mock Data
         # df = pd.DataFrame(
-        #         [   [ "2023.11.30. 오전 10:46", "IT과학", "뉴시스", "'외국인 민원 OK' 보은군, 인공지능 통번역기 운영", "65개 언어 지원…언어장벽 해소보은군에서 외국인 민원인을 위해 운영 중인 인공지능 ...", "https://n.news.naver.com/mnews/article/003/001" ],
-        #             [ "2023.11.29. 오후 5:11", "IT과학", "연합뉴스", "NIA, 인공지능 기업 CEO들과 AI 윤리 확산 간담회", "AI 윤리 확산 CEO 간담회[한국지능정보사회진흥원 제공] (서울=연합뉴스) ...", "https://n.news.naver.com/mnews/article/001/001" ],
-        #             [ "2023.11.30. 오전 7:23", "IT과학", "헤럴드경제", "경콘진, '인공지능 활용 게임 제작 매뉴얼' 배포", "[경콘진 제공][헤럴드경제(수원)=박정규 기자]경기콘텐츠진흥원(원장 탁용석)은 20...", "https://n.news.naver.com/mnews/article/016/000" ],
-        #             [ "2023.11.29. 오후 4:33", "IT과학", "노컷뉴스", "'원주시를 인공지능 실리콘 밸리로'", "핵심요약원주시, 국내 혁신 선도기업과 AI얼라이언스 공동연구센터 구축29일 원주시와...", "https://n.news.naver.com/mnews/article/079/000" ]
-        #         ],
-        #         columns=columns
+        #     [   [ "2023.11.30. 오전 10:46", "IT과학", "뉴시스", "'외국인 민원 OK' 보은군, 인공지능 통번역기 운영", "65개 언어 지원…언어장벽 해소보은군에서 외국인 민원인을 위해 운영 중인 인공지능 ...", "https://n.news.naver.com/mnews/article/003/001" ],
+        #         [ "2023.11.29. 오후 5:11", "IT과학", "연합뉴스", "NIA, 인공지능 기업 CEO들과 AI 윤리 확산 간담회", "AI 윤리 확산 CEO 간담회[한국지능정보사회진흥원 제공] (서울=연합뉴스) ...", "https://n.news.naver.com/mnews/article/001/001" ],
+        #         [ "2023.11.30. 오전 7:23", "IT과학", "헤럴드경제", "경콘진, '인공지능 활용 게임 제작 매뉴얼' 배포", "[경콘진 제공][헤럴드경제(수원)=박정규 기자]경기콘텐츠진흥원(원장 탁용석)은 20...", "https://n.news.naver.com/mnews/article/016/000" ],
+        #         [ "2023.11.29. 오후 4:33", "IT과학", "노컷뉴스", "'원주시를 인공지능 실리콘 밸리로'", "핵심요약원주시, 국내 혁신 선도기업과 AI얼라이언스 공동연구센터 구축29일 원주시와...", "https://n.news.naver.com/mnews/article/079/000" ]
+        #     ],
+        #     columns=columns
         # )
 
         seekTable = TABLE_News
@@ -126,8 +144,7 @@ def crawler( startDate, endDate, category, press, pageSize, maxPage ):
         res = requests.get( url, headers=req_header_dict ) 
         print( res.status_code, res.ok )
         #print( type(res) ) 
-        #print( '응답헤더', res.headers )
-        #print( '요청헤더', res.request.headers )
+        #print( res.headers, res.request.headers )
         #print( res.text )
         
         if res.ok:
@@ -164,8 +181,7 @@ def crawler( startDate, endDate, category, press, pageSize, maxPage ):
 
                     article_res = requests.get( link, headers=req_header_dict )
                     print( article_res.status_code, article_res.ok )
-                    #print( '응답헤더', article_res.headers )
-                    #print( '요청헤더', article_res.request.headers )
+                    #print( article_res.headers, article_res.request.headers )
                     #print( article_res.text )
 
                     if article_res.ok:
@@ -247,6 +263,55 @@ def crawler( startDate, endDate, category, press, pageSize, maxPage ):
     df.to_csv( 'result.csv')
 
     return df
+
+
+def getClassfication( article ):
+
+    print( "Article:", article )
+
+    #print( "Location:", os.getcwd() )
+
+    model = joblib.load('/home/ubuntu/Serang9oorm/model/RandomForestClassifier_model_20240110.pkl')
+    print( "Model loaded!" )
+    
+    okt = Okt()
+
+    #raw = okt.pos( article, norm=True, stem=True )
+    raw = okt.pos( article )
+    print( "Pos:", raw )
+    
+    words = []
+    for word, pos in raw:
+        if pos in ["Noun", "Verb", "Adjective", "Adverb"]:
+            words.append(word)
+    print( "Words:", words )
+
+    vc = pd.Series(words).value_counts()
+    print( "Vc:", vc )
+
+    df_words = pd.read_csv( "/home/ubuntu/Serang9oorm/model/data_words.csv", index_col=0 )
+    print( "DataWords:", df_words )
+
+    temp = pd.DataFrame( columns=df_words.columns )
+
+    for word in vc.index:
+        count = vc.loc[word]
+        if word in df_words.columns:
+            temp.loc[0, word] = count
+
+    temp.fillna( 0, inplace=True )
+    print( "Temp:", temp )
+
+    section = { 0: "정치", 1: "경제", 2: "사회", 3: "생활/문화", 4: "세계", 5: "IT/과학" }
+
+    predict = model.predict( temp )
+
+    predictResult = "이 기사는 '" + section[ predict[0] ] + "' 뉴스입니다!"
+    print( predictResult )
+
+    #r = "ok! " + article
+
+    return predictResult
 
 
 def getCategoryName( category ):

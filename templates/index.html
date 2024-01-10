@@ -37,8 +37,8 @@
         <label for="pageNo">Max Page:</label>
         <input type="number" id="maxPage" name="maxPage" min="0", max="30" value="0">
 
-        <input type="button" value="Get News from DB" onclick="submitForm( 'GetNews' )">
-        <input type="button" value="Start Server Crawler" onclick="submitForm( 'StartCrawler')">
+        <input type="button" value="Get News from DB" onclick="news_submitForm( 'GetNews' )">
+        <input type="button" value="Start Server Crawler" onclick="news_submitForm( 'StartCrawler')">
 
     </form>
 
@@ -48,6 +48,7 @@
 
     <h2 id="result">Result:</h2>
     <div style="border: 1px solid; padding: 10px; width: auto; height: 540px;">
+
         <table id="resultTable">
             <thead>
                 <tr>
@@ -67,6 +68,18 @@
 
         <!-- Page No. -->
         <div id="pageNumbers" style="text-align: center;"></div>
+
+    </div>
+
+    <h2 id="classification">Classification:</h2>
+    <div style="border: 1px solid; padding: 10px; width: auto; height: 180px;">
+
+        <form action="" name="articleForm">
+            <input type="text" name="article" style="width: 96%; height: 170px;"/>
+            <input type="button" value="분류" onclick="classification_submitForm()">
+        </form>
+        <br>
+ 
     </div>
 
     <script>
@@ -123,6 +136,9 @@
             }
         }
 
+        //var Server = 'http://3.37.66.31:5000/'
+        var Server = 'http://3.37.66.31/'
+
         var currentPageSize = 10;   // 페이지당 항목 수 초기값
         var currentPage = 1;        // 현재 페이지 초기값
 
@@ -130,7 +146,7 @@
         var columnCount = 0
         var rowCount = 0
 
-        function submitForm( act ) {
+        function news_submitForm( act ) {
             
             var startDate = document.getElementById("startDate").value;
             var endDate = document.getElementById("endDate").value;
@@ -141,11 +157,9 @@
             
             currentPageSize = parseInt( pageSize );
 
-            var query = "http://3.37.66.31/NaverNews/" + act + "?startDate=" + startDate + "&endDate=" + endDate + "&category=" + category + "&press=" + press + "&pageSize=" + pageSize + "&maxPage=" + maxPage
-            var crawlingQuery = document.getElementById("crawlingQuery")
-            //crawlingQuery.innerHTML = "API Query: " + query.replace( ":5000", "" );
-            crawlingQuery.innerHTML = "API Query: " + query;
-
+            var query = Server + "NaverNews/" + act + "?startDate=" + startDate + "&endDate=" + endDate + "&category=" + category + "&press=" + press + "&pageSize=" + pageSize + "&maxPage=" + maxPage
+            var crawlingQuery = document.getElementById("crawlingQuery").innerHTML = "API Query: " + query;
+            
             document.getElementById("resultTable").getElementsByTagName('tbody')[0].innerHTML = "";
             document.getElementById("pageNumbers").innerHTML = "";
             document.getElementById("result").innerHTML = ( act == 'GetNews' ) ? "DB 서버로부터 뉴스 자료 요청중 (Please wait while selecting...)" : "서버 뉴스 크롤러 시작! (Start crawling...)";
@@ -153,7 +167,6 @@
             // AJAX
             var xhr = new XMLHttpRequest();
             xhr.open( "GET", query, true );
-            //xhr.open( "POST", query, true );
 
 			xhr.onreadystatechange = function(){
 			
@@ -180,14 +193,61 @@
 
                         listResponse()
 							 
-					}else{
-						console.log('Fail');
+					} else {
+						console.log( 'Fail' );
 					}
 				}
 			};
 
             xhr.send();
         }
+
+
+        function classification_submitForm(){        
+
+            var data = document.articleForm.article.value; 
+
+            if( data=="" ){
+                alert("데이터 입력!");
+                document.articleForm.article.focus();
+                return;
+            }
+
+            document.getElementById("classification").innerHTML = "서버로부터 기사 분류중 (Please wait while classification...)";
+
+            // AJAX
+            var xhr = new XMLHttpRequest();
+  
+            var query = Server + "Classification"
+
+            xhr.open( "POST", query, true );
+
+            xhr.setRequestHeader( "Content-type", "application/x-www-form-urlencoded" ); 
+
+            xhr.onreadystatechange = function(){
+
+                if( xhr.readyState === xhr.DONE ){
+
+                    if( xhr.status === 200 ){
+
+                        console.log('Success');
+
+                        var response = xhr.responseText;
+
+                        document.getElementById("classification").innerHTML = "Classification: " + response;
+
+                        console.log( 'response:', response )
+
+                    } else {
+                        console.log( 'Fail' );
+                    }
+                }
+            };
+
+            xhr.send( "article=" + data );
+
+        }
+
 
         function listResponse() {
 
