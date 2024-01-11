@@ -449,7 +449,12 @@ def afterPost( str ):
 
 def removeMark( txt ):
     retTxt = txt.replace( "\n\n\n", "\n" )
-    retTxt = retTxt.replace( " '", " '" )
+    retTxt = retTxt.replace( "`", "'" )
     retTxt = retTxt.replace( "·", "," )
+    retTxt = retTxt.replace( "\"", "'" )
+    retTxt = retTxt.replace( "''", "'" )
+    retTxt = retTxt.replace( "”", "'" )
+    retTxt = retTxt.replace( "“", "'" )
+    retTxt = retTxt.replace( "/[\x00-\x08\x0E-\x1F\x7F]+/", '' )
     retTxt = retTxt.strip()
     return retTxt

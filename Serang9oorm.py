@@ -1,18 +1,20 @@
 ﻿# -*- coding: utf-8 -*-
 
+import os
 import sys, json, requests, re
 import datetime
 import time
 import random
 import logging
-from json import dumps as json_encode
-import os
-
 import pandas as pd
+
+from json import dumps as json_encode
 
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup as BS
+
+from tqdm.notebook import tqdm
 
 import konlpy
 #import nltk
@@ -52,7 +54,7 @@ def classification():
 def naverNews( act ):
 
     startDate = datetime.datetime.strptime( request.args.get( 'startDate' ), '%Y-%m-%d' )
-    endDate = datetime.datetime.strptime( request.args.get( 'endDate' ), '%Y-%m-%d' ) + datetime.timedelta(days=1)
+    endDate = datetime.datetime.strptime( request.args.get( 'endDate' ), '%Y-%m-%d' )
     category = request.args.get( 'category' )
     press = request.args.get( 'press', '' )
     pageSize = int( request.args.get( 'pageSize', '20' ) )
@@ -75,6 +77,8 @@ def naverNews( act ):
         #     columns=columns
         # )
 
+        endDate = endDate + datetime.timedelta(days=1)
+
         seekTable = TABLE_News
         seekField = "DATE_FORMAT( newsDate, '%Y-%m-%d %H:%i:%s' ), category, press, title, documentHead, link"
         seekWhere = f"newsDate >= '{startDate}' and newsDate < '{endDate}' and " + f"category = '{category}'" + ( '' if press == '' else "and press LIKE '%" + f"{press}%'" )
@@ -90,15 +94,16 @@ def naverNews( act ):
             df = pd.DataFrame( newsList, columns=columns )
             
         else:
-            df = pd.DataFrame( newsList[:maxCount], columns=columns )
 
-        df['category'] = df['category'].apply(getCategoryName)
+            df = pd.DataFrame( newsList[:maxCount], columns=columns )
 
     else:
 
         # Crawling - NaverNews
         df = crawler( startDate, endDate, category, press, pageSize, maxPage )
 
+
+    df['category'] = df['category'].apply( getCategoryName )
     #print(df)
 
     r = df.to_json( orient="columns" )
@@ -111,156 +116,249 @@ def crawler( startDate, endDate, category, press, pageSize, maxPage ):
 
     categoryName = getCategoryName( category )
 
-    NaverNews = "https://news.naver.com/main/main.naver?mode=LSD&mid=shm&sid1={sid}#&date=%2000:00:00&page={page}"
+    # Get Crawling Date Range
+    dateRange_list = []
+    for date in pd.date_range( start=startDate, end=endDate, freq='D' ):
+        dateRange_list.append( date.strftime( "%Y%m%d" ) )
+    print( 'dateRange:', dateRange_list )
+
+    #NaverNews = "https://news.naver.com/main/main.naver?mode=LSD&mid=shm&sid1={sid}#&date=%2000:00:00&page={page}"
+    NaverNews = "https://news.naver.com/main/list.naver"
+    #NaverNewsPage = "?mode=LS2D&mid=shm&sid1={sid1}&sid2={sid2}&date={date}&page={page}"
+    NaverNewsPage = "?mode=LS2D&sid2={sid2}&sid1={sid1}&mid=shm&date={date}&page={page}"
 
     req_header_dict = {
-        # 요청헤더 : 브라우저 정보
         'user-agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36'
     }
   
-    #[ [ "2023.11.30. 오전 10:46", "IT과학", "뉴시스", "'외국인 민원 OK' 보은군, 인공지능 통번역기 운영", "65개 언어 지원…언어장벽 해소보은군에서 외국인 민원인을 위해 운영 중인 인공지능 ...", "https://n.news.naver.com/mnews/article/003/001", "..." ],
+    sid2List = { '100':  [ '264', '265', '266', '267', '268', '269' ],
+                 '101':  [ '258', '270', '271', '272', '273', '274', '275' ],
+                 '102':  [ '249', '250', '251', '252', '254', '255', '256', '257', '276', '59b' ],
+                 '103':  [ '237', '238', '239', '240', '241', '242', '243', '244', '245', '248', '376' ],
+                 '104':  [ '231', '232', '233', '234', '322' ],
+                 '105':  [ '226', '227', '228', '229', '230', '283', '731', '732' ]
+    }
+                 
+    sid1 = category
+    sid2_list = sid2List[ sid1 ]
+    #sid2_list = [ '732' ]
+    print( 'sid1:', sid1, 'sid2:', sid2_list )
+
+    # Get PageLinks --------------------------------------------------------------------------------------------------
+    pageLink_list = []
+
+    for sid2 in sid2_list:
+
+        #print( "Sid:", sid1, sid2 )
+        
+        for date in dateRange_list:
+
+            print( "Sid:", sid1, sid2, "Date:", date )
+
+            nPage = 1
+            nOldPage = 0
+            
+            while nPage > nOldPage:
+
+                nOldPage = nPage
+                
+                url = NaverNewsPage.format( sid1=sid1, sid2=sid2, date=date, page=nPage )
+                #print( 'url:', url )
+                
+                res = requests.get( NaverNews + url, headers=req_header_dict )
+                
+                if res.ok:
+        
+                    pageLink_list.append( url )
+        
+                    html = res.text
+                    soup = BS( html, 'html.parser' ) 
+                    page_list = soup.select( "div.paging > a" ) 
+                        
+                    #print( "page_list:", len(page_list) )
+                    for page in page_list:
+                        
+                        link = page['href']
+                        #print( 'page #', page.get_text(), link )
+
+                        if ( page.get_text() == '이전' ):
+                            continue
+                            
+                        elif ( page.get_text() == '다음' ):
+                            nPage = nPage + 10
+
+                        else:
+                            pageLink_list.append( link )
+        
+                    #print('\n')
+        
+
+    for pl in pageLink_list:
+        print(pl)
+    print( "Total Pages:", len( pageLink_list ) )  
+
+    # Get Articles -------------------------------------------------------------------------------------------------------
+    
+    # Initialize Rerurn Data
     date_list = []
     category_list = []
     press_list = []
     title_list = []
+    document_list = []
     documentHead_list = []
     link_list = []
 
-    dateUnderCheck = False
-    dateOverCheck = False
-
     articleCount = 0
     duplicationCount = 0
-    maxCount = pageSize * maxPage
+    errorCount = 0
+    
+    for url in pageLink_list:
 
-    nPage = 1
-
-    while not dateOverCheck and ( maxCount == 0 or articleCount < maxCount ):
-        
-        print( 'nPage:', nPage )
-        url = NaverNews.format( sid=category, page=nPage )
-
-        res = requests.get( url, headers=req_header_dict ) 
-        print( res.status_code, res.ok )
-        #print( type(res) ) 
-        #print( res.headers, res.request.headers )
-        #print( res.text )
+        res = requests.get( NaverNews + url, headers=req_header_dict )
         
         if res.ok:
-            
+
             html = res.text
-            soup = BS( html, 'html.parser' )
-            #sh_list = soup.select("div._persist > div.section_headline > ul > li > div.sh_text")
-            sh_list= soup.select("div.sh_text")
+            soup = BS( html, 'html.parser' ) 
+
+            for body in [ "ul.type06_headline", "ul.type06" ]:
+
+                item_list = soup.select( body + " > li > dl" ) 
+                    
+                #print( "item_list:", body, len(item_list) )
+                for item in item_list:
+        
+                    link = item.a['href']
+                    title = item.a.get_text()
+
+                    #print( '-' * 60 )
+                    link = item.a['href']
+                    article_link = link if link.find('?') < 0 else link[0:link.find('?')]
+                    #print( "Link:", link, article_link )
+                    #print( "Link:", link )
+
+                    article_documentHead = removeMark( item.select_one( "span.lede" ).get_text() )
+                    #print( "DocumentHead:", article_documentHead )
+
+                    article_press = removeMark( item.select_one( "span.writing" ).get_text() )
+                    pressCheck = ( press in article_press ) if press != '' else True    # 언론사 포함 검사
+                    #print( "Press: ( ", press, ")", article_press, pressCheck )
+
+                    # 중복 검사
+                    if article_link not in link_list:
                 
-            print( 'Headline Count:', len(sh_list) )
-            for item in sh_list:
+                        #print( '-' * 60 )
+                        #print( 'Request:', article_link )
+                        #time.sleep( random.uniform(2,4) )
+                        time.sleep(0.3)
 
-                #print(item)
-                print( '-' * 60 )
-                article_title = removeMark( item.a.get_text() )
-                print( "Title:", article_title )
-                link = item.a['href']
-                print( "Link0:", item.a['href'] )
-                link = link if link.find('?') < 0 else link[0:link.find('?')]
-                print( "Link:", link )
-                documentHead = removeMark( item.select_one("div.sh_text_lede").get_text() )
-                print( "DocumentHead:", documentHead )
-                article_press = removeMark( item.select_one("div.sh_text_press").get_text() )
-                pressCheck = ( press in article_press ) if press != '' else True
-                print( "Press: ( ", press, ")", article_press, pressCheck )
-                #print( '=' * 60 )            
+                        try:
+                    
+                            article_res = requests.get( link, headers=req_header_dict )
+                            #print( article_res.status_code, article_res.ok )
+                            #print( article_res.headers, article_res.request.headers )
+                            #print( article_res.text )
 
-                # 중복 검사
-                if link not in link_list:
-            
-                    print( 'Request:', link )
-                    time.sleep(0.5)
-                    #time.sleep( random.uniform(2,4) )
+                            if article_res.ok:
 
-                    article_res = requests.get( link, headers=req_header_dict )
-                    print( article_res.status_code, article_res.ok )
-                    #print( article_res.headers, article_res.request.headers )
-                    #print( article_res.text )
+                                #print( '=' * 60 )            
+                                article_html = article_res.text
+                                article_soup = BS( article_html, 'html.parser' )
+                                
+                                article_title = removeMark( article_soup.select_one( "h2#title_area > span" ).get_text() )
+                                #print( "Title:", article_title )
 
-                    if article_res.ok:
+                                article_datetime = article_soup.select( "span._ARTICLE_DATE_TIME" )[0]['data-date-time']
+                                article_date = datetime.datetime.strptime( article_datetime, "%Y-%m-%d %H:%M:%S" )
+                                #print( "DateTime:", article_date )
 
-                        print( '=' * 60 )            
-                        article_html = article_res.text
-                        article_soup = BS( article_html, 'html.parser' )
-                        #sh_list = soup.select("div._persist > div.section_headline > ul > li > div.sh_text")
-                        
-                        #datetime = article_soup.select("span._ARTICLE_DATE_TIME").find['data-date-time']
-                        article_datetime = article_soup.select("span._ARTICLE_DATE_TIME")[0]['data-date-time']
-                        #datetime = datetime['data-date-time']
-                        print( "DateTime:", article_datetime )
-                        article_date = datetime.datetime.strptime( article_datetime, "%Y-%m-%d %H:%M:%S" )
-                        #print( "DateTime:", type(article_date), article_date )
+                                #article_document = article_soup.select( "article#dic_area" )[0]
+                                #document = removeMark( article_document.get_text() )
+                                article_document = removeMark( article_soup.select( "article#dic_area" )[0].get_text() )
+                                #print( "Document:", article_document )
 
-                        #dateCheck = ( article_date >= startDate ) and ( article_date < endDate )
-                        dateUnderCheck = ( article_date < startDate )
-                        dateOverCheck = ( article_date >= endDate )
-                        print( "DateCheck:", dateUnderCheck, dateOverCheck )
+                                if pressCheck:
+                                    
+                                    articleCount += 1
+                                    print( '[추가] Count:', articleCount, article_link )
 
-                        article_document = article_soup.select("article#dic_area")[0]
-                        document = removeMark( article_document.get_text() )
-                        
-                        #print( "Document:", document )
+                                    # Append DataFrame 
+                                    date_list.append( article_datetime )
+                                    category_list.append( category )
+                                    press_list.append( article_press )
+                                    title_list.append( article_title )
+                                    document_list.append( article_document )
+                                    documentHead_list.append( article_documentHead )
+                                    link_list.append( article_link )
 
-                        if dateOverCheck:
-                            print( 'Date Over:', startDate, endDate, article_date )
-                            break
-                            
-                        elif dateUnderCheck:
-                            continue
+                                    # news_data = {   'newsDate'        : article_datetime,
+                                    #                 'category'        : category,
+                                    #                 'press'           : article_press,
+                                    #                 'title'           : article_title,
+                                    #                 'document'        : article_document,
+                                    #                 'documentHead'    : article_documentHead,
+                                    #                 'link'            : article_link,
+                                    #                 'summary'         : ''
+                                    # }
+                                    
+                                    # insertData( TABLE_News, news_data )
+                                    #db.insertData( TABLE_News, { 'date': article_date, 'category': categoryName, 'press': article_press, 'title': item.a.get_text(), 'document': document, 'link': link, 'summary': documentHead } )
 
-                        elif pressCheck:
-                            
-                            articleCount += 1
-                            print( '[추가] Page:', nPage, ', Count:', articleCount )
+                        except:
+                            errorCount += 1
+                            print( '[오류] Count:', errorCount, article_link )
 
-                            date_list.append( article_datetime )
-                            category_list.append( categoryName )
-                            press_list.append( article_press )
-                            title_list.append( article_title )
-                            documentHead_list.append( documentHead )
-                            link_list.append( link )
+                    else:
+                        duplicationCount += 1
+                        print( '[중복] Count: (', duplicationCount, ')', articleCount, article_link )
+      
+    print( 'Total Articles:', articleCount, len( link_list ), 'Duplicated Counts:', duplicationCount, 'Error Count:', errorCount )
 
-                            news_data = { 'newsDate'        : article_datetime,
-                                          'category'        : category,
-                                          'press'           : article_press,
-                                          'title'           : article_title,
-                                          'document'        : document,
-                                          'documentHead'    : documentHead,
-                                          'link'            : link,
-                                          'summary'         : ''
-                                         }
-                            
-                            insertData( TABLE_News, news_data )
-                            #db.insertData( TABLE_News, { 'date': article_date, 'category': categoryName, 'press': article_press, 'title': item.a.get_text(), 'document': document, 'link': link, 'summary': documentHead } )
-                
-                else:
-                    duplicationCount += 1
-                    print( '[중복] Page:', nPage, ', Count: (', duplicationCount, ')', articleCount, link )
+    result = {  'date'          : date_list,
+                'category'      : category_list,
+                'press'         : press_list,
+                'title'         : title_list,
+                'document'      : document_list,
+                'documentHead'  : documentHead_list,
+                'link'          : link_list
+    }
 
-            nPage += 1
-
-        else:
-            dateCheck = False
-
-    print( '총갯수:', articleCount, '총중복갯수:', duplicationCount, '총페이지수:', nPage - 1 )
-
-    result = {  'date'      : date_list,
-                'category'  : category_list,
-                'press'     : press_list,
-                'title'     : title_list,
-                'document'  : documentHead_list,
-                'link'      : link_list
-            }
-    
+    # Make DataFrame
     df = pd.DataFrame( result )
-    df.to_csv( 'result.csv')
+
+    # 특수문자 제거
+    df["title"] = df["title"].str.replace( pat=r'[^\w]', repl=r' ', regex=True )
+    df["document"] = df["document"].str.replace( pat=r'[^\w]', repl=r' ', regex=True )
+    df["documentHead"] = df["documentHead"].str.replace( pat=r'[^\w]', repl=r' ', regex=True )
+
+    # DB 저장
+    for idx, row in df.iterrows():
+        print( "DB:", idx, row['link'] )
+
+        news_data = {   'newsDate'        : row['date'],
+                        'category'        : row['category'],
+                        'press'           : row['press'],
+                        'title'           : row['title'],
+                        'document'        : row['document'],
+                        'documentHead'    : row['documentHead'],
+                        'link'            : row['link'],
+                        'summary'         : ''
+        }
+        
+        insertData( TABLE_News, news_data )
+
+    # 리턴할 데이터프레임 변경
+    df = df.drop('document', axis=1)
+    df.rename( columns={ 'documentHead' : 'document' }, inplace=True )
+
+    maxCount = pageSize * maxPage
+    if ( maxCount > 0 and df['date'].count() > maxCount ):
+        df = df.head( maxCount )   #maxCount는 Return 자료에만 적용
+
+    # df.to_csv( 'result.csv', index=False, encoding="utf-8-sig" )
+
+    print( "Complete!", '-' * 60 )
 
     return df
 
@@ -308,8 +406,6 @@ def getClassfication( article ):
 
     predictResult = "이 기사는 '" + section[ predict[0] ] + "' 뉴스입니다!"
     print( predictResult )
-
-    #r = "ok! " + article
 
     return predictResult
 
