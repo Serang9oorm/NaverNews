@@ -30,6 +30,9 @@ from db import *
 
 app = Flask(__name__)
 
+#model = joblib.load('/home/ubuntu/Serang9oorm/model/RandomForestClassifier_model_20240110.pkl')
+#df_words = pd.read_csv( "/home/ubuntu/Serang9oorm/model/data_words.csv", index_col=0 )
+
 # home ----------------------------------------------------------------------------------------------------------------
 #@app.route("/", methods=['GET', 'POST'] )
 @app.route('/')
@@ -44,8 +47,8 @@ def classification():
     article = request.form.get( 'article', '' )
     #print( 'article:', article )
 
-    #r = getClassfication( article )
-    r = "서버 지연으로 아직 제공되지 않습니다."
+    r = getClassfication( article )
+    #r = "서버 지연으로 아직 제공되지 않습니다."
 
     return make_response( r.encode("utf-8"), 200 )
 
@@ -224,37 +227,34 @@ def crawler( startDate, endDate, category, press, pageSize, maxPage ):
 
             for body in [ "ul.type06_headline", "ul.type06" ]:
 
-                item_list = soup.select( body + " > li > dl" ) 
+                try:
+
+                    item_list = soup.select( body + " > li > dl" ) 
                     
-                #print( "item_list:", body, len(item_list) )
-                for item in item_list:
-        
-                    link = item.a['href']
-                    title = item.a.get_text()
+                    #print( "item_list:", body, len(item_list) )
+                    for item in item_list:
 
-                    #print( '-' * 60 )
-                    link = item.a['href']
-                    article_link = link if link.find('?') < 0 else link[0:link.find('?')]
-                    #print( "Link:", link, article_link )
-                    #print( "Link:", link )
-
-                    article_documentHead = removeMark( item.select_one( "span.lede" ).get_text() )
-                    #print( "DocumentHead:", article_documentHead )
-
-                    article_press = removeMark( item.select_one( "span.writing" ).get_text() )
-                    pressCheck = ( press in article_press ) if press != '' else True    # 언론사 포함 검사
-                    #print( "Press: ( ", press, ")", article_press, pressCheck )
-
-                    # 중복 검사
-                    if article_link not in link_list:
-                
                         #print( '-' * 60 )
-                        #print( 'Request:', article_link )
-                        #time.sleep( random.uniform(2,4) )
-                        time.sleep(0.3)
+                        link = item.a['href']
+                        article_link = link if link.find('?') < 0 else link[0:link.find('?')]
+                        #print( "Link:", link, article_link )
+                        #print( "Link:", link )
 
-                        try:
+                        article_documentHead = removeMark( item.select_one( "span.lede" ).get_text() )
+                        #print( "DocumentHead:", article_documentHead )
+
+                        article_press = item.select_one( "span.writing" ).get_text()
+                        pressCheck = ( press in article_press ) if press != '' else True    # 언론사 포함 검사
+                        #print( "Press: ( ", press, ")", article_press, pressCheck )
+
+                        # 중복 검사
+                        if article_link not in link_list:
                     
+                            #print( '-' * 60 )
+                            #print( 'Request:', article_link )
+                            #time.sleep( random.uniform(2,4) )
+                            time.sleep(0.5)
+                        
                             article_res = requests.get( link, headers=req_header_dict )
                             #print( article_res.status_code, article_res.ok )
                             #print( article_res.headers, article_res.request.headers )
@@ -292,26 +292,23 @@ def crawler( startDate, endDate, category, press, pageSize, maxPage ):
                                     documentHead_list.append( article_documentHead )
                                     link_list.append( article_link )
 
-                                    # news_data = {   'newsDate'        : article_datetime,
-                                    #                 'category'        : category,
-                                    #                 'press'           : article_press,
-                                    #                 'title'           : article_title,
-                                    #                 'document'        : article_document,
-                                    #                 'documentHead'    : article_documentHead,
-                                    #                 'link'            : article_link,
-                                    #                 'summary'         : ''
-                                    # }
-                                    
-                                    # insertData( TABLE_News, news_data )
-                                    #db.insertData( TABLE_News, { 'date': article_date, 'category': categoryName, 'press': article_press, 'title': item.a.get_text(), 'document': document, 'link': link, 'summary': documentHead } )
+                                    # Save to DB
+                                    save2DB( article_datetime, 
+                                             category, 
+                                             article_press, 
+                                             article_title, 
+                                             article_document, 
+                                             article_documentHead, 
+                                             article_link
+                                    )
 
-                        except:
-                            errorCount += 1
-                            print( '[오류] Count:', errorCount, article_link )
+                        else:
+                            duplicationCount += 1
+                            print( '[중복] Count: (', duplicationCount, ')', articleCount, article_link )
 
-                    else:
-                        duplicationCount += 1
-                        print( '[중복] Count: (', duplicationCount, ')', articleCount, article_link )
+                except:
+                    errorCount += 1
+                    print( '[오류] Count:', errorCount, article_link )
       
     print( 'Total Articles:', articleCount, len( link_list ), 'Duplicated Counts:', duplicationCount, 'Error Count:', errorCount )
 
@@ -326,27 +323,6 @@ def crawler( startDate, endDate, category, press, pageSize, maxPage ):
 
     # Make DataFrame
     df = pd.DataFrame( result )
-
-    # 특수문자 제거
-    df["title"] = df["title"].str.replace( pat=r'[^\w]', repl=r' ', regex=True )
-    df["document"] = df["document"].str.replace( pat=r'[^\w]', repl=r' ', regex=True )
-    df["documentHead"] = df["documentHead"].str.replace( pat=r'[^\w]', repl=r' ', regex=True )
-
-    # DB 저장
-    for idx, row in df.iterrows():
-        print( "DB:", idx, row['link'] )
-
-        news_data = {   'newsDate'        : row['date'],
-                        'category'        : row['category'],
-                        'press'           : row['press'],
-                        'title'           : row['title'],
-                        'document'        : row['document'],
-                        'documentHead'    : row['documentHead'],
-                        'link'            : row['link'],
-                        'summary'         : ''
-        }
-        
-        insertData( TABLE_News, news_data )
 
     # 리턴할 데이터프레임 변경
     df = df.drop('document', axis=1)
@@ -363,15 +339,54 @@ def crawler( startDate, endDate, category, press, pageSize, maxPage ):
     return df
 
 
+def save2DB( date, category, press, title, document, documentHead, link ):
+    
+    result = False
+
+    saveData = { 'date'          : [ date ],
+                 'category'      : [ category ],
+                 'press'         : [ press ],
+                 'title'         : [ title ],
+                 'document'      : [ document ],
+                 'documentHead'  : [ documentHead ],
+                 'link'          : [ link ]
+    }
+
+    # Make DataFrame
+    df = pd.DataFrame( saveData )
+
+    # 특수문자 제거
+    df["title"] = df["title"].str.replace( pat=r'[^\w]', repl=r' ', regex=True )
+    df["document"] = df["document"].str.replace( pat=r'[^\w]', repl=r' ', regex=True )
+    df["documentHead"] = df["documentHead"].str.replace( pat=r'[^\w]', repl=r' ', regex=True )
+
+    # DB 저장
+    for idx, row in df.iterrows():
+
+        #print( "DB:", idx, row['link'] )
+
+        news_data = {   'newsDate'        : row['date'],
+                        'category'        : row['category'],
+                        'press'           : row['press'],
+                        'title'           : row['title'],
+                        'document'        : row['document'],
+                        'documentHead'    : row['documentHead'],
+                        'link'            : row['link'],
+                        'summary'         : ''
+        }
+        
+        result = insertData( TABLE_News, news_data )
+        #db.insertData( TABLE_News, { 'date': article_date, 'category': categoryName, 'press': article_press, 'title': item.a.get_text(), 'document': document, 'link': link, 'summary': documentHead } )
+
+    return result
+
+
 def getClassfication( article ):
 
     print( "Article:", article )
 
     #print( "Location:", os.getcwd() )
 
-    model = joblib.load('/home/ubuntu/Serang9oorm/model/RandomForestClassifier_model_20240110.pkl')
-    print( "Model loaded!" )
-    
     okt = Okt()
 
     #raw = okt.pos( article, norm=True, stem=True )
@@ -400,12 +415,16 @@ def getClassfication( article ):
     temp.fillna( 0, inplace=True )
     print( "Temp:", temp )
 
-    section = { 0: "정치", 1: "경제", 2: "사회", 3: "생활/문화", 4: "세계", 5: "IT/과학" }
+    # section = { 0: "정치", 1: "경제", 2: "사회", 3: "생활/문화", 4: "세계", 5: "IT/과학" }
 
-    predict = model.predict( temp )
+    # model = joblib.load('/home/ubuntu/Serang9oorm/model/RandomForestClassifier_model_20240110.pkl')
+    # print( "Model loaded!" )
 
-    predictResult = "이 기사는 '" + section[ predict[0] ] + "' 뉴스입니다!"
-    print( predictResult )
+    # predict = model.predict( temp )
+
+    # predictResult = "이 기사는 '" + section[ predict[0] ] + "' 뉴스입니다!"
+    # print( predictResult )
+    predictResult = "predict test..."
 
     return predictResult
 

@@ -47,7 +47,7 @@
     </span>
 
     <h2 id="result">Result:</h2>
-    <div style="border: 1px solid; padding: 10px; width: auto; height: 540px;">
+    <div style="border: 1px solid; padding: 10px; width: auto; height: 540px; overflow:auto;">
 
         <table id="resultTable">
             <thead>
@@ -136,15 +136,15 @@
             }
         }
 
-        //var Server = 'http://3.37.66.31:5000/'
-        var Server = 'http://3.37.66.31/'
+        var Server = 'http://3.37.66.31/';
+        //Server = Server + ':5000/';         // Test Server
 
-        var currentPageSize = 10;   // 페이지당 항목 수 초기값
-        var currentPage = 1;        // 현재 페이지 초기값
+        var currentPageSize = 10;           // 페이지당 항목 수 초기값
+        var currentPage = 1;                // 현재 페이지 초기값
 
-        var response = 0
-        var columnCount = 0
-        var rowCount = 0
+        var response = 0;
+        var columnCount = 0;
+        var rowCount = 0;
 
         function news_submitForm( act ) {
             
